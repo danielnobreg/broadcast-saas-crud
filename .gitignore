@@ -1,0 +1,64 @@
+# Dependency Directories
+node_modules/
+web/node_modules/
+functions/node_modules/
+
+# Build and Output Directories
+dist/
+web/dist/
+dist-ssr/
+web/dist-ssr/
+functions/lib/
+
+# Sprint Documentation and Local Sprint Tasks (Como solicitado)
+BroadcastSprint/
+
+# Firebase Cache and Local Configs
+.firebase/
+.firebaserc.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Playwright Test Artifacts and Reports (Para prevenção futura)
+test-results/
+web/test-results/
+playwright-report/
+web/playwright-report/
+blob-report/
+web/blob-report/
+playwright/.cache/
+
+# Environment Variables and Credentials (IGNORAR SEMPRE)
+.env
+.env.local
+.env.*.local
+web/.env.local
+web/.env.*.local
+functions/.env.local
+
+# Logs and Debugging Files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor Configurations
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Agent and Model specific cache/directories
+.antigravitycli/
+flash3.5/
+gpt55/

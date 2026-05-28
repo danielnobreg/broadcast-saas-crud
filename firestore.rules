@@ -1,0 +1,126 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers de identidade ─────────────────────────────────────────────────
+
+    // Verifica se o documento existente pertence ao usuário logado
+    function isOwner(clientId) {
+      return request.auth != null && request.auth.uid == clientId;
+    }
+
+    // Verifica se o dado que está sendo escrito declara clientId == uid do autor
+    function isWritingAsOwner() {
+      return request.auth != null
+        && request.resource.data.clientId == request.auth.uid;
+    }
+
+    // Garante que campos imutáveis não mudaram entre o dado atual e o novo
+    function fieldUnchanged(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+
+    // ── Validadores de schema por coleção ─────────────────────────────────────
+
+    // connections: apenas name pode ser editado — clientId e createdAt são imutáveis
+    function validConnectionWrite() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['clientId', 'name', 'createdAt'])
+          && d.keys().hasOnly(['clientId', 'name', 'createdAt'])
+          && d.name is string
+          && d.name.size() > 0
+          && d.name.size() <= 100;
+    }
+
+    function validConnectionUpdate() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['clientId', 'name', 'createdAt'])
+          && d.keys().hasOnly(['clientId', 'name', 'createdAt'])
+          && d.name is string
+          && d.name.size() > 0
+          && d.name.size() <= 100
+          && fieldUnchanged('clientId')
+          && fieldUnchanged('createdAt');
+    }
+
+    // contacts: connectionId e clientId imutáveis em updates
+    function validContactWrite() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['clientId', 'connectionId', 'name', 'phone', 'createdAt'])
+          && d.keys().hasOnly(['clientId', 'connectionId', 'name', 'phone', 'createdAt'])
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+          && d.phone is string && d.phone.size() > 0 && d.phone.size() <= 20
+          && d.connectionId is string && d.connectionId.size() > 0;
+    }
+
+    function validContactUpdate() {
+      return validContactWrite()
+          && fieldUnchanged('clientId')
+          && fieldUnchanged('connectionId')
+          && fieldUnchanged('createdAt');
+    }
+
+    // messages: cliente pode criar com campos válidos.
+    // Campos permitidos na criação incluem recurrence (opcional).
+    function validMessageCreate() {
+      let d = request.resource.data;
+      let requiredFields = ['clientId', 'connectionId', 'contactIds', 'text', 'status', 'scheduledAt', 'createdAt'];
+      let allAllowed = ['clientId', 'connectionId', 'contactIds', 'text', 'status', 'scheduledAt', 'createdAt', 'recurrence'];
+      return d.keys().hasAll(requiredFields)
+          && d.keys().hasOnly(allAllowed)
+          && d.text is string && d.text.size() > 0 && d.text.size() <= 4096
+          && d.connectionId is string && d.connectionId.size() > 0
+          && d.contactIds is list
+          && (d.status == 'scheduled' || d.status == 'sent')
+          // ADR-007: status deve bater com scheduledAt — se scheduledAt é null, status deve ser sent
+          && (d.scheduledAt == null) == (d.status == 'sent');
+    }
+
+    // messages update: cliente só pode editar `text` enquanto status == 'scheduled'.
+    // Campos de controle (status, scheduledAt, connectionId, contactIds, clientId, createdAt)
+    // são imutáveis para o cliente. A Cloud Function usa Admin SDK (bypass total).
+    function validMessageClientUpdate() {
+      let d = request.resource.data;
+      let allAllowed = ['clientId', 'connectionId', 'contactIds', 'text', 'status', 'scheduledAt', 'createdAt', 'recurrence'];
+      return d.keys().hasOnly(allAllowed)
+          && resource.data.status == 'scheduled'  // só mensagens agendadas podem ser editadas
+          && fieldUnchanged('clientId')
+          && fieldUnchanged('connectionId')
+          && fieldUnchanged('contactIds')
+          && fieldUnchanged('status')
+          && fieldUnchanged('scheduledAt')
+          && fieldUnchanged('createdAt')
+          && d.text is string && d.text.size() > 0 && d.text.size() <= 4096;
+    }
+
+    // ── Regras por coleção ────────────────────────────────────────────────────
+
+    match /connections/{connectionId} {
+      allow read:   if isOwner(resource.data.clientId);
+      allow create: if isWritingAsOwner() && validConnectionWrite();
+      allow update: if isOwner(resource.data.clientId) && isWritingAsOwner() && validConnectionUpdate();
+      allow delete: if isOwner(resource.data.clientId);
+    }
+
+    match /contacts/{contactId} {
+      allow read:   if isOwner(resource.data.clientId);
+      allow create: if isWritingAsOwner() && validContactWrite();
+      allow update: if isOwner(resource.data.clientId) && isWritingAsOwner() && validContactUpdate();
+      allow delete: if isOwner(resource.data.clientId);
+    }
+
+    match /messages/{messageId} {
+      allow read:   if isOwner(resource.data.clientId);
+      allow create: if isWritingAsOwner() && validMessageCreate();
+      // update: cliente só edita text de mensagens scheduled — Cloud Function usa Admin SDK (bypass)
+      allow update: if isOwner(resource.data.clientId) && validMessageClientUpdate();
+      allow delete: if isOwner(resource.data.clientId);
+    }
+
+    // Bloqueia qualquer outra coleção não mapeada explicitamente
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

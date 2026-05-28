@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/*
+  Reset base — MUI e Tailwind convivem aqui.
+  MUI injeta seus estilos via <style> no <head> com maior especificidade,
+  então utilitários Tailwind de layout/spacing funcionam normalmente.
+  Para sobrescrever estilos MUI com Tailwind, use !important ou encapsule
+  o componente num wrapper com className Tailwind.
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

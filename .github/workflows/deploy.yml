@@ -1,0 +1,52 @@
+name: CI/CD — Build & Deploy to Firebase
+
+on:
+  push:
+    branches:
+      - main # Dispara a pipeline automaticamente sempre que houver um push ou merge na branch main
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Puxa o código do seu repositório no GitHub
+      - name: 🔍 Checkout Código
+        uses: actions/checkout@v4
+
+      # 2. Configura o Node.js v24 (versão que travamos no package.json das Functions)
+      - name: 🟢 Configurar Node.js v24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: |
+            web/package-lock.json
+            functions/package-lock.json
+
+      # 2.5. Reconstrói o arquivo .env.local dinamicamente usando o segredo do GitHub para o build
+      - name: 📝 Criar arquivo .env.local no Frontend
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > web/.env.local
+
+      # 3. Instala e compila o Frontend (React + Vite)
+      - name: 💻 Instalar e Compilar Frontend (web)
+        run: |
+          cd web
+          npm ci # Instalação rápida e limpa usando o package-lock travado
+          npm run build
+
+      # 4. Instala e compila o Backend (Cloud Functions)
+      - name: ⚙️ Instalar e Compilar Cloud Functions (functions)
+        run: |
+          cd functions
+          npm ci
+          npm run build
+
+      # 5. Efetua o Deploy na nuvem do Firebase (Hosting + Functions + Rules + Indexes)
+      # Usa o token ou a chave de acesso do Firebase configurada nos Secrets do seu GitHub.
+      - name: 🚀 Deploy para o Firebase
+        run: npx firebase-tools deploy --force
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
