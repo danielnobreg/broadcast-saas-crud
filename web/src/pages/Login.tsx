@@ -177,11 +177,10 @@ const Login = () => {
             slotProps={{
               input: {
                 endAdornment: (
-                  <InputAdornment position="end">
+                  <InputAdornment position="end" sx={{ mr: 1 }}>
                     <IconButton
                       aria-label="toggle password visibility"
                       onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
                       sx={{ color: '#64748b', p: 0.5 }}
                     >
                       {showPassword ? <VisibilityOff sx={{ fontSize: '1.25rem' }} /> : <Visibility sx={{ fontSize: '1.25rem' }} />}
