@@ -202,3 +202,30 @@ Sempre que novos códigos são enviados à branch `main` via `push` ou `pull req
 2. No seu repositório do GitHub, vá em **Settings** > **Secrets and variables** > **Actions** > **New repository secret**.
 3. Crie um segredo com o nome `FIREBASE_TOKEN` e cole o valor gerado.
 4. Commit e envie o arquivo `.github/workflows/deploy.yml` para disparar a primeira execução automática!
+
+---
+
+## Roadmap — Próximas Evoluções Naturais
+
+A arquitetura do Broadcast foi projetada com expansão em mente. Os blocos de construção necessários (conexões como canais, contatos com telefone E.164, Cloud Function de processamento agendado) estão todos prontos para suportar as seguintes integrações sem refatoração estrutural:
+
+### Integração com WhatsApp (Camada de Disparo Real)
+
+A entidade `Connection` representa hoje um canal de mensageria configurável. O próximo passo natural é conectá-la a um provedor real de envio:
+
+| Abordagem | Características | Adequado Para |
+| :--- | :--- | :--- |
+| **WhatsApp Business API (Meta Oficial)** | API REST estável, suporte oficial, sem risco de bloqueio de conta | Produção, clientes empresariais |
+| **Baileys (Protocolo não-oficial)** | Open source, sem custo por mensagem, requer Node persistente (Cloud Run) | MVPs, projetos internos, alto volume |
+
+**Como o Broadcast suportaria Baileys:**
+A Cloud Function `processScheduledMessages` atual marca mensagens como `sent` de forma simbólica. Para integrar um provedor real:
+1. Substituir o `batch.update({ status: 'sent' })` por uma chamada HTTP ao serviço de envio (Baileys rodando em Cloud Run ou WhatsApp Business API).
+2. O resultado do envio (sucesso/falha) determina se o status é atualizado para `sent` ou `failed`.
+3. O frontend já consome o campo `status` via `onSnapshot` e reflete instantaneamente — zero mudança no frontend.
+
+### Outras Evoluções Mapeadas
+
+- **Dashboard Analytics** — queries agregadas no Firestore para taxa de envio, mensagens por conexão e histórico temporal.
+- **Webhooks de Entrega** — receber callbacks de status de entrega do WhatsApp Business API e atualizar o campo `status` via Cloud Function HTTP trigger.
+- **Multi-usuário por Tenant** — hoje cada `clientId` é um `auth.uid` individual. A arquitetura flat permite evoluir para um modelo de organização (`orgId`) sem reestruturar as coleções.
